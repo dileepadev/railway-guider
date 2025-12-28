@@ -11,6 +11,7 @@
 
 package dev.dileepabandara.railwayguider.User;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -37,10 +38,14 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.firebase.database.ValueEventListener;
-import com.theartofdev.edmodo.cropper.CropImage;
-import com.theartofdev.edmodo.cropper.CropImageView;
 
 import io.paperdb.Paper;
+
+// CanHub imports
+import com.canhub.cropper.CropImageContract;
+import com.canhub.cropper.CropImageContractOptions;
+import com.canhub.cropper.CropImageOptions;
+import com.canhub.cropper.CropImageView;
 
 public class UserAccount extends AppCompatActivity {
 
@@ -49,13 +54,19 @@ public class UserAccount extends AppCompatActivity {
     ImageView userImage;
     ProgressBar progressBar_account;
 
+    // Launcher to pick an image from gallery
+    private ActivityResultLauncher<String> pickImageLauncher;
+
+    // Launcher to crop the picked image
+    private ActivityResultLauncher<CropImageContractOptions> cropImageLauncher;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_user_account);
 
-        //Hooks
+        // Initialize views
         txtName = findViewById(R.id.txtName);
         txtEmail = findViewById(R.id.txtEmail);
         txtMobile = findViewById(R.id.txtMobile);
@@ -64,51 +75,76 @@ public class UserAccount extends AppCompatActivity {
         userImage = findViewById(R.id.userImage);
         progressBar_account = findViewById(R.id.progressBar_account);
 
-        //Back Button
+        // Initialize Paper (local storage)
+        Paper.init(this);
+
+        // Back button
         ImageView imgBack = findViewById(R.id.imgBack);
-        imgBack.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                finish();
-            }
-        });
+        imgBack.setOnClickListener(v -> finish());
 
-        //Home Button
+        // Home button
         ImageView imgHome = findViewById(R.id.imgHome);
-        imgHome.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startActivity(new Intent(getApplicationContext(), UserDashboard.class));
-                finishAffinity();
-            }
+        imgHome.setOnClickListener(v -> {
+            startActivity(new Intent(getApplicationContext(), UserDashboard.class));
+            finishAffinity();
         });
 
-        //Show all data
+        // Set user details
         setUserDetails();
 
+        // Display stored image if exists
         try {
-            //Paper
-            Paper.init(this);
             String paperUserImage = Paper.book().read(Prevalent2.UserImageKey);
-            String profilePic = String.valueOf(paperUserImage);
-            //Toast.makeText(this, ""+profilePic, Toast.LENGTH_SHORT).show();
-
-            if (profilePic.equals("null")) {
-                userImage.setImageResource(R.drawable.icon_user_profile_pic);
+            if (paperUserImage != null && !paperUserImage.equals("null")) {
+                userImage.setImageURI(Uri.parse(paperUserImage));
             } else {
-                userImage.setImageURI(Uri.parse(profilePic));
+                userImage.setImageResource(R.drawable.icon_user_profile_pic);
             }
-
         } catch (Exception e) {
             Toast.makeText(this, "" + e, Toast.LENGTH_SHORT).show();
         }
+
+// Register launcher to pick image
+        pickImageLauncher = registerForActivityResult(
+                new androidx.activity.result.contract.ActivityResultContracts.GetContent(),
+                uri -> {
+                    if (uri != null) {
+                        // Create crop options
+                        CropImageOptions cropOptions = new CropImageOptions();
+                        cropOptions.guidelines = CropImageView.Guidelines.ON;
+                        cropOptions.fixAspectRatio = true;
+                        cropOptions.aspectRatioX = 1;
+                        cropOptions.aspectRatioY = 1;
+
+                        // Launch cropper
+                        cropImageLauncher.launch(new CropImageContractOptions(uri, cropOptions));
+                    }
+                }
+        );
+
+// Register crop image launcher
+        cropImageLauncher = registerForActivityResult(
+                new CropImageContract(),
+                result -> {
+                    if (result.isSuccessful()) {
+                        Uri croppedUri = result.getUriContent();
+                        if (croppedUri != null) {
+                            userImage.setImageURI(croppedUri);
+                            Paper.book().write(Prevalent2.UserImageKey, croppedUri.toString());
+                            Toast.makeText(UserAccount.this, "Profile photo updated", Toast.LENGTH_SHORT).show();
+                        }
+                    } else {
+                        Exception error = result.getError();
+                        if (error != null) {
+                            Toast.makeText(UserAccount.this, "Crop failed: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+        );
     }
 
-
-    //Send user details to UserAccount
+    // Fetch user details from Firebase
     private void setUserDetails() {
-
-        Paper.init(this);
         final String user_mobile = Paper.book().read(Prevalent.UserMobileKey);
 
         DatabaseReference reference = FirebaseDatabase.getInstance().getReference("users");
@@ -118,115 +154,64 @@ public class UserAccount extends AppCompatActivity {
         checkUser.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-
                 if (dataSnapshot.child(user_mobile).exists()) {
-
-                    //Get values from database
-                    String passwordFromDB = dataSnapshot.child(user_mobile).child("password").getValue(String.class);
                     String nameFromDB = dataSnapshot.child(user_mobile).child("name").getValue(String.class);
                     String mobileFromDB = dataSnapshot.child(user_mobile).child("mobile").getValue(String.class);
                     String emailFromDB = dataSnapshot.child(user_mobile).child("email").getValue(String.class);
 
-                    try {
+                    txtName.getEditText().setText(nameFromDB);
+                    txtEmail.getEditText().setText(emailFromDB);
+                    txtMobile.getEditText().setText(mobileFromDB);
+                    lblName.setText(nameFromDB);
+                    lblMobile.setText(mobileFromDB);
 
-                        txtName.getEditText().setText(nameFromDB);
-                        txtEmail.getEditText().setText(emailFromDB);
-                        txtMobile.getEditText().setText(mobileFromDB);
-                        lblName.setText(nameFromDB);
-                        lblMobile.setText(mobileFromDB);
-                        progressBar_account.setVisibility(View.GONE);
-
-                    } catch (Exception e) {
-                        Toast.makeText(UserAccount.this, "Error: " + e, Toast.LENGTH_SHORT).show();
-                    }
+                    progressBar_account.setVisibility(View.GONE);
                 } else {
-                    Toast.makeText(UserAccount.this, "E2 ", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(UserAccount.this, "User not found.", Toast.LENGTH_SHORT).show();
                 }
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-
-            }
+            public void onCancelled(@NonNull DatabaseError databaseError) {}
         });
-
     }
 
     public void onClickUpdate(View view) {
-
         if (!validateName()) {
-            Toast toast = Toast.makeText(getApplicationContext(), "Error", Toast.LENGTH_SHORT);
-            toast.show();
+            Toast.makeText(getApplicationContext(), "Error", Toast.LENGTH_SHORT).show();
             return;
-        } else {
-
-            AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
-            builder.setTitle("Confirm before update");
-            builder.setMessage("Are you sure to update?");
-
-            builder.setPositiveButton("UPDATE", new DialogInterface.OnClickListener() {
-
-                public void onClick(DialogInterface dialog, int which) {
-
-                    dialog.dismiss();
-                    updateProfile();
-                }
-            });
-
-            builder.setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
-
-                @Override
-                public void onClick(DialogInterface dialog, int which) {
-                    dialog.dismiss();
-                }
-            });
-
-            AlertDialog alert = builder.create();
-            alert.show();
-
         }
 
+        new AlertDialog.Builder(this)
+                .setTitle("Confirm before update")
+                .setMessage("Are you sure to update?")
+                .setPositiveButton("UPDATE", (dialog, which) -> {
+                    dialog.dismiss();
+                    updateProfile();
+                })
+                .setNegativeButton("CANCEL", (dialog, which) -> dialog.dismiss())
+                .show();
     }
 
     private void updateProfile() {
-
-        Paper.init(this);
         final String user_mobile = Paper.book().read(Prevalent.UserMobileKey);
-        DatabaseReference reference = FirebaseDatabase.getInstance().getReference().child("users").child(user_mobile);
+
+        DatabaseReference reference = FirebaseDatabase.getInstance().getReference("users").child(user_mobile);
         progressBar_account.setVisibility(View.VISIBLE);
-        reference.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                try {
 
-                    dataSnapshot.getRef().child("name").setValue(txtName.getEditText().getText().toString());
-                    dataSnapshot.getRef().child("email").setValue(txtEmail.getEditText().getText().toString());
-                    dataSnapshot.getRef().child("mobile").setValue(txtMobile.getEditText().getText().toString());
+        reference.child("name").setValue(txtName.getEditText().getText().toString());
+        reference.child("email").setValue(txtEmail.getEditText().getText().toString());
+        reference.child("mobile").setValue(txtMobile.getEditText().getText().toString());
 
-                    progressBar_account.setVisibility(View.GONE);
-                    Toast.makeText(UserAccount.this, "Name Updated", Toast.LENGTH_SHORT).show();
-                    Intent intent2 = new Intent(getApplicationContext(), Login.class);
-                    startActivity(intent2);
-                    finishAffinity();
+        progressBar_account.setVisibility(View.GONE);
+        Toast.makeText(this, "Profile Updated", Toast.LENGTH_SHORT).show();
 
-                } catch (Exception e) {
-                    Toast.makeText(UserAccount.this, "Error: " + e, Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-
-            }
-        });
-
+        startActivity(new Intent(getApplicationContext(), Login.class));
+        finishAffinity();
     }
 
-    //Validations
     private Boolean validateName() {
         String val = txtName.getEditText().getText().toString();
-
         if (val.isEmpty()) {
             txtName.setError("Name cannot be empty");
             return false;
@@ -240,72 +225,21 @@ public class UserAccount extends AppCompatActivity {
         }
     }
 
-
+    // Launch image picker
     public void onClickSelectImage(View view) {
-
-        Intent i = new Intent();
-        i.setAction(Intent.ACTION_GET_CONTENT);
-        i.setType("image/*");
-        startActivityForResult(i, 12);
-
-    }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == 12 && resultCode == RESULT_OK && data != null) {
-            CropImage.activity()
-                    .setGuidelines(CropImageView.Guidelines.ON)
-                    .setAspectRatio(1, 1)
-                    .start(this);
-
-        }
-
-        if (requestCode == CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE) {
-            CropImage.ActivityResult result = CropImage.getActivityResult(data);
-            if (resultCode == RESULT_OK) {
-                Uri resultUri = result.getUri();
-                userImage.setImageURI(resultUri);
-
-                String uriPaper = String.valueOf(resultUri);
-                Paper.init(this);
-                Paper.book().write(Prevalent2.UserImageKey, uriPaper);
-                Toast.makeText(this, "Profile photo updated", Toast.LENGTH_SHORT).show();
-                //Toast.makeText(this, ""+resultUri, Toast.LENGTH_SHORT).show();
-
-            } else if (resultCode == CropImage.CROP_IMAGE_ACTIVITY_RESULT_ERROR_CODE) {
-                Exception error = result.getError();
-            }
-        }
+        pickImageLauncher.launch("image/*");
     }
 
     public void onClickDeleteAccount(View view) {
-
         final String name = Paper.book().read(Prevalent.UserNameKey);
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
-        builder.setTitle("Hi " +name+ "! Are you sure to delete your account?");
-        builder.setMessage("We still develop our system and sorry about the mistakes of the process. We hope to give amazing service by our next updates. Thank you for use Railway Guider service.");
-
-        builder.setPositiveButton("CONFIRM", new DialogInterface.OnClickListener() {
-
-            public void onClick(DialogInterface dialog, int which) {
-                startActivity(new Intent(getApplicationContext(), UserAccountDelete.class));
-                dialog.dismiss();
-            }
-        });
-
-        builder.setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
-
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.dismiss();
-            }
-        });
-
-        AlertDialog alert = builder.create();
-        alert.show();
-
+        new AlertDialog.Builder(this)
+                .setTitle("Hi " + name + "! Are you sure to delete your account?")
+                .setMessage("We hope to give amazing service by our next updates. Thank you for using Railway Guider.")
+                .setPositiveButton("CONFIRM", (dialog, which) -> {
+                    startActivity(new Intent(getApplicationContext(), UserAccountDelete.class));
+                    dialog.dismiss();
+                })
+                .setNegativeButton("CANCEL", (dialog, which) -> dialog.dismiss())
+                .show();
     }
 }

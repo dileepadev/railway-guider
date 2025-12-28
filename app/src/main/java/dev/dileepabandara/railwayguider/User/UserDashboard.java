@@ -34,20 +34,18 @@ import dev.dileepabandara.railwayguider.Prevalent.Prevalent;
 import dev.dileepabandara.railwayguider.R;
 import com.google.android.material.navigation.NavigationView;
 
-
 import io.paperdb.Paper;
 
 public class UserDashboard extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
 
-    //DrawerMenu Variables
+    // DrawerMenu Variables
     DrawerLayout drawerLayout;
     Toolbar toolbar;
     NavigationView navigationView;
     ActionBarDrawerToggle toggle;
 
-    //User profile variables
-    TextView lbl_name, lbl_navHeader_name, lbl_navHeader_username;
-    ImageView userImage2;
+    // User profile variables
+    TextView lbl_name;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,52 +53,46 @@ public class UserDashboard extends AppCompatActivity implements NavigationView.O
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
         setContentView(R.layout.activity_user_dashboard);
 
-        //DrawerMenu Hooks
+        // Hooks
         drawerLayout = findViewById(R.id.drawer);
         toolbar = findViewById(R.id.toolbar);
         navigationView = findViewById(R.id.navigationView);
 
-        //DrawerMenu Tool Bar
+        // Toolbar setup
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayShowTitleEnabled(false);
         toolbar.setTitle("");
         toolbar.setSubtitle("");
-        //toolbar.setNavigationIcon(R.drawable.icon_menu);
-        //toolbar.setLogo(R.drawable.icon_menu);
 
-        //DrawerMenu navigation drawer menu
+        // Navigation drawer setup
         navigationView.bringToFront();
         toggle = new ActionBarDrawerToggle(this, drawerLayout, toolbar, R.string.drawerOpen, R.string.drawerClose);
         drawerLayout.addDrawerListener(toggle);
         toggle.syncState();
         navigationView.setNavigationItemSelectedListener(this);
 
-        //User profile hooks
+        // User profile hooks
         lbl_name = findViewById(R.id.txt_name);
 
-        //Set user details to UserDashboard and Drawer Menu
+        // Set user details
         setUserDetails();
-
     }
 
-    //Set user details to UserDashboard and Drawer Menu
+    // Set user details to UserDashboard
     private void setUserDetails() {
-
-
-        //Get username and password from Prevalent class
         Paper.init(this);
         final String user_mobile = Paper.book().read(Prevalent.UserMobileKey);
         final String user_name = Paper.book().read(Prevalent.UserNameKey);
-        String Welcome = "Hi " +user_name +"!";
+        String Welcome = "Hi " + user_name + "!";
 
         try {
             lbl_name.setText(Welcome);
-        } catch (Exception e){
-            Toast.makeText(this, "Error pass data" +e, Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Error passing data: " + e, Toast.LENGTH_SHORT).show();
         }
     }
 
-    //Back paused error of drawer menu is close
+    // Close drawer if open on back press
     @Override
     public void onBackPressed() {
         if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
@@ -108,102 +100,79 @@ public class UserDashboard extends AppCompatActivity implements NavigationView.O
         } else {
             super.onBackPressed();
         }
-
     }
 
-    //Navigation Drawer Menu
+    // Navigation Drawer Menu handling
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
 
-        switch (menuItem.getItemId()) {
-            case R.id.menu_account:
-                Intent intent1 = new Intent(UserDashboard.this, UserAccount.class);
-                startActivity(intent1);
-                break;
+        int id = menuItem.getItemId();
 
-            case R.id.menu_logout:
-                Paper.book().destroy();
-                Intent intent2 = new Intent(UserDashboard.this, Login.class);
-                startActivity(intent2);
-                finish();
-                break;
+        if (id == R.id.menu_account) {
+            startActivity(new Intent(UserDashboard.this, UserAccount.class));
 
-            case R.id.menu_notes:
-                Intent intent3 = new Intent(UserDashboard.this, ReadingWall.class);
-                startActivity(intent3);
-                break;
+        } else if (id == R.id.menu_logout) {
+            Paper.book().destroy();
+            startActivity(new Intent(UserDashboard.this, Login.class));
+            finish();
 
-            case R.id.menu_online_support:
-                Intent intent4 = new Intent(UserDashboard.this, OnlineSupport.class);
-                startActivity(intent4);
-                break;
+        } else if (id == R.id.menu_notes) {
+            startActivity(new Intent(UserDashboard.this, ReadingWall.class));
 
-            case R.id.menu_settings:
-                Intent intent5 = new Intent(UserDashboard.this, UserSettings.class);
-                startActivity(intent5);
-                break;
+        } else if (id == R.id.menu_online_support) {
+            startActivity(new Intent(UserDashboard.this, OnlineSupport.class));
 
-            case R.id.menu_share:
-                Intent intent6 = new Intent(UserDashboard.this, UserShare.class);
-                startActivity(intent6);
-                break;
+        } else if (id == R.id.menu_settings) {
+            startActivity(new Intent(UserDashboard.this, UserSettings.class));
 
-            case R.id.menu_about_us:
-                Intent intent7 = new Intent(UserDashboard.this, AboutUs.class);
-                startActivity(intent7);
-                break;
+        } else if (id == R.id.menu_share) {
+            startActivity(new Intent(UserDashboard.this, UserShare.class));
+
+        } else if (id == R.id.menu_about_us) {
+            startActivity(new Intent(UserDashboard.this, AboutUs.class));
         }
 
+        drawerLayout.closeDrawer(GravityCompat.START);
         return true;
     }
 
-
-    //Dashboard Schedule Activity
+    // Dashboard Schedule Activity
     public void onClickSchedule(View view) {
-        Intent i = new Intent(this, TrainSchedule.class);
-        startActivity(i);
+        startActivity(new Intent(this, TrainSchedule.class));
     }
 
-    //Dashboard Books Activity
+    // Dashboard Books Activity
     public void onClickBooks(View view) {
-        Intent i = new Intent(this, BookedTrains.class);
-        startActivity(i);
+        startActivity(new Intent(this, BookedTrains.class));
     }
 
-    //Dashboard Location Activity
+    // Dashboard Location Activity
     public void onClickLocation(View view) {
-        Intent i = new Intent(this, Location.class);
-        startActivity(i);
+        startActivity(new Intent(this, Location.class));
     }
 
-    //Dashboard Tickets Activity
+    // Dashboard ReadingWall Activity
     public void onClickReadingWall(View view) {
-        Intent i = new Intent(this, ReadingWall.class);
-        startActivity(i);
+        startActivity(new Intent(this, ReadingWall.class));
     }
 
-    //Dashboard Gifts Activity
+    // Dashboard Gifts Activity
     public void onClickGifts(View view) {
-        Intent i = new Intent(this, RailwayGuiderGifts.class);
-        startActivity(i);
+        startActivity(new Intent(this, RailwayGuiderGifts.class));
     }
 
-    //Dashboard Account Activity
+    // Dashboard Account Activity
     public void onClickAccount(View view) {
-        Intent i = new Intent(UserDashboard.this, UserAccount.class);
-        startActivity(i);
+        startActivity(new Intent(UserDashboard.this, UserAccount.class));
     }
 
-    //Dashboard Payments Activity
+    // Dashboard Payments Activity
     public void onClickPayments(View view) {
-        Intent i = new Intent(this, PaymentHistory.class);
-        startActivity(i);
+        startActivity(new Intent(this, PaymentHistory.class));
     }
 
-    //Dashboard Scan Activity
+    // Dashboard Scan Activity
     public void onClickScan(View view) {
-        Intent i = new Intent(this, QRScan.class);
-        startActivity(i);
+        startActivity(new Intent(this, QRScan.class));
     }
-
 }
