@@ -63,7 +63,10 @@ Before you get started, follow these requirements.
 - Firebase project
 - Google Maps API key
 - Java 17 (or latest LTS)
-- Android Gradle Plugin (AGP) 7.4.0
+- Android compileSdkVersion 34 (Android 14)
+- minSdkVersion 21
+- Android Build Tools 34.0.0
+- Android Gradle Plugin (AGP) 8.1.1
 - Gradle 8.13
 
 Notes:
